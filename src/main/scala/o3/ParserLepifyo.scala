@@ -1,8 +1,11 @@
 package o3
 
+import o3.ParserLepifyo.ParseError
+
 import scala.util.parsing.combinator._
 
-case class ParserLepifyo[TExpresion](
+case class ParserLepifyo[TPrograma, TExpresion](
+                                      programa: List[TExpresion] => TPrograma,
                                       numero: Int => TExpresion,
                                       booleano: Boolean => TExpresion,
                                       suma: (TExpresion, TExpresion) => TExpresion,
@@ -14,13 +17,18 @@ case class ParserLepifyo[TExpresion](
                                       mayor: (TExpresion, TExpresion) => TExpresion,
                                       mayorIgual: (TExpresion, TExpresion) => TExpresion,
                                       menor: (TExpresion, TExpresion) => TExpresion,
-                                      menorIgual: (TExpresion, TExpresion) => TExpresion
+                                      menorIgual: (TExpresion, TExpresion) => TExpresion,
+                                      declaracionVariable: (String, TExpresion) => TExpresion,
+                                      variable: String => TExpresion,
+                                      asignacion: (String, TExpresion) => TExpresion,
                                     ) extends RegexParsers {
-  def parsear(textoPrograma: String): TExpresion = {
+  def parsear(textoPrograma: String): TPrograma = {
     def parserNumero: Parser[TExpresion] = """[0-9]+""".r ^^ { n => numero(n.toInt) }
     def parserBooleano: Parser[TExpresion] = "true" ^^^ booleano(true) | "false" ^^^ booleano(false)
+    def parserIdentificador: Parser[String] = """[_a-z][_a-zA-Z0-9]*""".r
+    def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
 
-    def parserFactor: Parser[TExpresion] = parserNumero | parserBooleano | "(" ~> parserExpresion <~ ")"
+    def parserFactor: Parser[TExpresion] = parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
 
     def parserTermino = chainl1(parserFactor, "*" ^^^ multiplicacion | "/" ^^^ division)
 
@@ -33,9 +41,23 @@ case class ParserLepifyo[TExpresion](
       "<" ^^^ menor
     )
     def parserExpresion = chainl1(parserMiembroDesigualdad, "==" ^^^ igual | "!=" ^^^ distinto)
+    def parserDeclaracionVariables = ("let " ~> parserIdentificador <~ "=") ~ parserExpresion ^^ {
+      case identificador ~ expresion => declaracionVariable(identificador, expresion)
+    }
+    def parserAsignacion = (parserIdentificador <~ "=") ~ parserExpresion ^^ {
+      case identificador ~ expresion => asignacion(identificador, expresion)
+    }
 
-    parseAll(parserExpresion, textoPrograma) match {
+    def parserPrograma = (parserDeclaracionVariables | parserAsignacion | parserExpresion).* ^^ programa
+
+    parseAll(parserPrograma, textoPrograma) match {
       case Success(matched, _) => matched
+      case Failure(message, rest) => throw ParseError(s"${message}: ${rest.source}")
+      case Error(message, rest) => throw ParseError(s"${message}: ${rest.source}")
     }
   }
+}
+
+object ParserLepifyo {
+  case class ParseError(message: String) extends RuntimeException(message)
 }
