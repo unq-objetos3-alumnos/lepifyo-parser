@@ -30,6 +30,10 @@ class ParserSpec extends AnyFunSpec with Matchers {
   case class Variable(nombre: String) extends Expresion
   case class Asignacion(nombre: String, valorNuevo: Expresion) extends Expresion
 
+  case class PrintLn(valor: Expresion) extends Expresion
+
+  case class If(cond: Expresion, pos: List[Expresion], neg: List[Expresion]) extends Expresion
+
   describe("parsea") {
     val parser = new ParserLepifyo[Programa, Expresion](
       programa = Programa,
@@ -47,7 +51,9 @@ class ParserSpec extends AnyFunSpec with Matchers {
       menorIgual = MenorIgual,
       declaracionVariable = DeclaracionVariable,
       variable = Variable,
-      asignacion = Asignacion
+      asignacion = Asignacion,
+      printLn = PrintLn,
+      si = If
     )
 
     it("números literales") {
@@ -216,6 +222,90 @@ class ParserSpec extends AnyFunSpec with Matchers {
       val ast = parser.parsear("numerador = 10")
 
       ast should equal(programa(Asignacion("numerador", 10)))
+    }
+
+    it("if inline") {
+      val ast = parser.parsear("if(1 > 3) then 2 + 1 else 3 * 2")
+
+      ast should equal(programa(If(Mayor(1, 3), List(Suma(2, 1)), List(Multiplicacion(3, 2)))))
+    }
+
+    it("if multilinea sin espacios") {
+      val ast = parser.parsear("if(1 > 3) then{ 2 }else{ 3 }")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List(3))))
+    }
+
+    it("if multilinea con espacios") {
+      val ast = parser.parsear("if(1 > 3) then { 2 } else { 3 }")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List(3))))
+    }
+
+    it("if con espacio entre if y then") {
+      val ast = parser.parsear("if (1 > 3) then 2 else 4")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List(4))))
+    }
+
+    it("if con then inline y else multilinea") {
+      val ast = parser.parsear("if(1 > 3) then 2 else { 3 }")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List(3))))
+    }
+
+    it("if con then multilinea y else inline") {
+      val ast = parser.parsear("if(1 > 3) then { 2 } else 3")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List(3))))
+    }
+
+    it("if solo con then inline") {
+      val ast = parser.parsear("if(1 > 3) then 2")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List())))
+    }
+
+    it("if solo con then multilinea") {
+      val ast = parser.parsear("if(1 > 3) then { 2 }")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List())))
+    }
+
+    it("if dentro de una expresion") {
+      val ast = parser.parsear("(if(1 > 3) then 2 else 3) + 4")
+
+      ast should equal(programa(Suma(If(Mayor(1, 3), List(2), List(3)), 4)))
+    }
+
+    it("if dentro del else de otro if") {
+      val ast = parser.parsear("if(1 > 3) then 2 else if(1 > 3) then 2 else 3")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List(If(Mayor(1, 3), List(2), List(3))))))
+    }
+
+    it("if dentro del then de otro if") {
+      val ast = parser.parsear("if(1 > 3) then if(2 < 1) then 2 else 3 else 4")
+
+      ast should equal(programa(If(Mayor(1, 3), List(If(Menor(2, 1), List(2), List(3))), List(4))))
+    }
+
+    it("if dentro del then de otro if sin else") {
+      val ast = parser.parsear("if(1 > 3) then if(2 < 1) then 2 else 3")
+
+      ast should equal(programa(If(Mayor(1, 3), List(If(Menor(2, 1), List(2), List(3))), List())))
+    }
+
+    it("print numero") {
+      val ast = parser.parsear("PrintLn(1)")
+
+      ast should equal(programa(PrintLn(1)))
+    }
+
+    it("print dentro de if") {
+      val ast = parser.parsear("if(2 > 1) then PrintLn(1)")
+
+      ast should equal(programa(If(Mayor(2,1), List(PrintLn(1)), List())))
     }
   }
 
