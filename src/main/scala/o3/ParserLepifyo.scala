@@ -8,6 +8,7 @@ case class ParserLepifyo[TPrograma, TExpresion](
    programa: List[TExpresion] => TPrograma,
    numero: Int => TExpresion,
    booleano: Boolean => TExpresion,
+   string: String => TExpresion,
    suma: (TExpresion, TExpresion) => TExpresion,
    resta: (TExpresion, TExpresion) => TExpresion,
    multiplicacion: (TExpresion, TExpresion) => TExpresion,
@@ -27,10 +28,13 @@ case class ParserLepifyo[TPrograma, TExpresion](
   def parsear(textoPrograma: String): TPrograma = {
     def parserNumero: Parser[TExpresion] = """[0-9]+""".r ^^ { n => numero(n.toInt) }
     def parserBooleano: Parser[TExpresion] = "true" ^^^ booleano(true) | "false" ^^^ booleano(false)
+    def parserString: Parser[TExpresion] = "\"" ~> """(\\\\|\\"|[^"])*""".r <~ "\"" ^^
+      ((_: String).replace("\\\"", "\"").replace("\\\\", "\\")).andThen(string)
+
     def parserIdentificador: Parser[String] = """[_a-z][_a-zA-Z0-9]*""".r
     def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
 
-    def parserFactor: Parser[TExpresion] = parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
+    def parserFactor: Parser[TExpresion] = parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
 
     def parserTermino = chainl1(parserFactor, "*" ^^^ multiplicacion | "/" ^^^ division)
 

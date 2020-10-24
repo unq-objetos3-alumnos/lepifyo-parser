@@ -13,6 +13,7 @@ class ParserSpec extends AnyFunSpec with Matchers {
 
   case class Numero(valor: Int) extends Expresion
   case class Booleano(valor: Boolean) extends Expresion
+  case class Cadena(valor: String) extends Expresion
 
   case class Suma(sumando1: Expresion, sumando2: Expresion) extends Expresion
   case class Resta(minuendo: Expresion, sustraendo: Expresion) extends Expresion
@@ -39,6 +40,7 @@ class ParserSpec extends AnyFunSpec with Matchers {
       programa = Programa,
       numero = Numero,
       booleano = Booleano,
+      string = Cadena,
       suma = Suma,
       resta = Resta,
       multiplicacion = Multiplicacion,
@@ -306,6 +308,48 @@ class ParserSpec extends AnyFunSpec with Matchers {
       val ast = parser.parsear("if(2 > 1) then PrintLn(1)")
 
       ast should equal(programa(If(Mayor(2,1), List(PrintLn(1)), List())))
+    }
+
+    it("string vacío") {
+      val ast = parser.parsear("\"\"")
+
+      ast should equal(programa(Cadena("")))
+    }
+
+    it("string no vacío") {
+      val ast = parser.parsear("\"Un String 123\"")
+
+      ast should equal(programa(Cadena("Un String 123")))
+    }
+
+    it("string seguido de otro") {
+      val ast = parser.parsear(""" "hola" "mundo" """)
+
+      ast should equal(programa(Cadena("hola"), Cadena("mundo")))
+    }
+
+    it("string con comillas") {
+      val ast = parser.parsear(""" "algo: \"" """)
+
+      ast should equal(programa(Cadena("algo: \"")))
+    }
+
+    it("string con barras") {
+      val ast = parser.parsear(""" "algo: \\ " """)
+
+      ast should equal(programa(Cadena("algo: \\ ")))
+    }
+
+    it("string con barras al final") {
+      val ast = parser.parsear(""" "algo: \\" """)
+
+      ast should equal(programa(Cadena("algo: \\")))
+    }
+
+    it("print de un string") {
+      val ast = parser.parsear("PrintLn(\"hola mundo\")")
+
+      ast should equal(programa(PrintLn(Cadena("hola mundo"))))
     }
   }
 
