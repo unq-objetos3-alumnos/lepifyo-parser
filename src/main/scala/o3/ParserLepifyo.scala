@@ -22,14 +22,33 @@ case class ParserLepifyo[TPrograma, TExpresion](
    declaracionVariable: (String, TExpresion) => TExpresion,
    variable: String => TExpresion,
    asignacion: (String, TExpresion) => TExpresion,
+   concatenacion: (TExpresion, TExpresion) => TExpresion,
    printLn: TExpresion => TExpresion,
+   promptString: TExpresion => TExpresion,
+   promptInt: TExpresion => TExpresion,
+   promptBool: TExpresion => TExpresion,
    si: (TExpresion, List[TExpresion], List[TExpresion]) => TExpresion
  ) extends RegexParsers {
+  private val funciones = Map(
+    "PrintLn" -> printLn,
+    "PromptInt" -> promptInt,
+    "PromptBool" -> promptBool,
+    "PromptString" -> promptString,
+  )
+
   def parsear(textoPrograma: String): TPrograma = {
     def parserNumero: Parser[TExpresion] = """[0-9]+""".r ^^ { n => numero(n.toInt) }
     def parserBooleano: Parser[TExpresion] = "true" ^^^ booleano(true) | "false" ^^^ booleano(false)
-    def parserString: Parser[TExpresion] = "\"" ~> """(\\\\|\\"|[^"])*""".r <~ "\"" ^^
-      ((_: String).replace("\\\"", "\"").replace("\\\\", "\\")).andThen(string)
+    def parserString: Parser[TExpresion] = """"\s*""".r ~ """(\\\\|\\"|[^"])*""".r <~ "\"" ^^ {
+      // Consumir los espacios del inicio (con la primera regex) es necesario porque si usáramos ~> descartaría
+      // los espacios al inicio del string
+      case inicioConEspacios ~ restoDelString =>
+        string(
+          (inicioConEspacios.drop(1) + restoDelString)
+            .replace("\\\"", "\"")
+            .replace("\\\\", "\\")
+        )
+    }
 
     def parserIdentificador: Parser[String] = """[_a-z][_a-zA-Z0-9]*""".r
     def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
@@ -40,7 +59,9 @@ case class ParserLepifyo[TPrograma, TExpresion](
 
     def parserMiembros = chainl1(parserTermino, "+" ^^^ suma | "-" ^^^ resta)
 
-    def parserMiembroDesigualdad = chainl1(parserMiembros,
+    def parserConcatenacion = chainl1(parserMiembros, "," ^^^ concatenacion)
+
+    def parserMiembroDesigualdad = chainl1(parserConcatenacion,
       ">=" ^^^ mayorIgual |
       "<=" ^^^ menorIgual |
       ">" ^^^ mayor |
@@ -53,12 +74,14 @@ case class ParserLepifyo[TPrograma, TExpresion](
     def parserAsignacion = (parserIdentificador <~ "=") ~ parserExpresion ^^ {
       case identificador ~ expresion => asignacion(identificador, expresion)
     }
-    def parserPrint = "PrintLn(" ~> parserExpresion <~ ")" ^^ printLn
 
-    def parserInstruccion = parserDeclaracionVariables | parserAsignacion | parserPrint | parserExpresion
+    def parserFuncion(nombre: String, funcion: TExpresion => TExpresion) = nombre ~> "(" ~> parserExpresion <~ ")" ^^ funcion
+    def parserFunciones: Parser[TExpresion] = funciones.map((parserFuncion _).tupled).reduce(_ | _)
+
+    def parserInstruccion = parserDeclaracionVariables | parserAsignacion | parserFunciones | parserExpresion
     def parserBloque = "{" ~> parserInstruccion.* <~ "}" | (parserInstruccion ^^ { List(_) })
 
-    def parserIf: Parser[TExpresion] = ("if" ~> "(" ~> parserExpresion <~ ") then") ~ parserBloque ~ ("else" ~> parserBloque).? ^^ {
+    def parserIf: Parser[TExpresion] = ("if" ~> "(" ~> parserExpresion <~ ")" <~ "then") ~ parserBloque ~ ("else" ~> parserBloque).? ^^ {
       case cond ~ pos ~ neg => si(cond, pos, neg.getOrElse(List()))
     }
 

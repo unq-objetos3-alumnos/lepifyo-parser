@@ -31,7 +31,11 @@ class ParserSpec extends AnyFunSpec with Matchers {
   case class Variable(nombre: String) extends Expresion
   case class Asignacion(nombre: String, valorNuevo: Expresion) extends Expresion
 
+  case class Concatenacion(expresion1: Expresion, expresion2: Expresion) extends Expresion
   case class PrintLn(valor: Expresion) extends Expresion
+  case class PromptInt(valor: Expresion) extends Expresion
+  case class PromptString(valor: Expresion) extends Expresion
+  case class PromptBool(valor: Expresion) extends Expresion
 
   case class If(cond: Expresion, pos: List[Expresion], neg: List[Expresion]) extends Expresion
 
@@ -54,7 +58,11 @@ class ParserSpec extends AnyFunSpec with Matchers {
       declaracionVariable = DeclaracionVariable,
       variable = Variable,
       asignacion = Asignacion,
+      concatenacion = Concatenacion,
       printLn = PrintLn,
+      promptString = PromptString,
+      promptInt = PromptInt,
+      promptBool = PromptBool,
       si = If
     )
 
@@ -244,8 +252,14 @@ class ParserSpec extends AnyFunSpec with Matchers {
       ast should equal(programa(If(Mayor(1, 3), List(2), List(3))))
     }
 
-    it("if con espacio entre if y then") {
+    it("if con espacio entre if y condición") {
       val ast = parser.parsear("if (1 > 3) then 2 else 4")
+
+      ast should equal(programa(If(Mayor(1, 3), List(2), List(4))))
+    }
+
+    it("if sin espacios entre condición y then") {
+      val ast = parser.parsear("if (1 > 3)then 2 else 4")
 
       ast should equal(programa(If(Mayor(1, 3), List(2), List(4))))
     }
@@ -346,10 +360,60 @@ class ParserSpec extends AnyFunSpec with Matchers {
       ast should equal(programa(Cadena("algo: \\")))
     }
 
+    it("string con espacios al principio") {
+      val ast = parser.parsear(""" " el string" """)
+
+      ast should equal(programa(Cadena(" el string")))
+    }
+
+    it("string con espacios al final") {
+      val ast = parser.parsear(""" "el string " """)
+
+      ast should equal(programa(Cadena("el string ")))
+    }
+
     it("print de un string") {
       val ast = parser.parsear("PrintLn(\"hola mundo\")")
 
       ast should equal(programa(PrintLn(Cadena("hola mundo"))))
+    }
+
+    it("concatenacion de strings") {
+      val ast = parser.parsear("\"hola\", \" mundo\"")
+
+      ast should equal(programa(Concatenacion(Cadena("hola"), Cadena(" mundo"))))
+    }
+
+    it("concatenacion de sumas de números") {
+      val ast = parser.parsear("\"El resultado es: \", 2 + 2")
+
+      ast should equal(programa(
+        Concatenacion(Cadena("El resultado es: "), Suma(2, 2))
+      ))
+    }
+
+    it("prompt int") {
+      val ast = parser.parsear("PromptInt(\"Ingrese un número: \")")
+
+      ast should equal(programa(PromptInt(Cadena("Ingrese un número: "))))
+    }
+
+    it("prompt bool") {
+      val ast = parser.parsear("PromptBool(\"Ingrese un booleano: \")")
+
+      ast should equal(programa(PromptBool(Cadena("Ingrese un booleano: "))))
+    }
+
+    it("prompt string") {
+      val ast = parser.parsear("PromptString(\"Ingrese un string: \")")
+
+      ast should equal(programa(PromptString(Cadena("Ingrese un string: "))))
+    }
+
+    it("funciones con espacios antes de los parámetros") {
+      val ast = parser.parsear("PromptString (\"Ingrese un string: \")")
+
+      ast should equal(programa(PromptString(Cadena("Ingrese un string: "))))
     }
   }
 
