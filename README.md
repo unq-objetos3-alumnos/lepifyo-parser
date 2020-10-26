@@ -1,37 +1,36 @@
 # Lepifyo Parser
 
 ## 👷‍♀️ Instalación
-1. Crear un token de acceso personal con el permiso package:read
-    > Obtenerlo desde `configuración` -> `Developer settings` -> `Tokens de acceso personal`
-
-    [Documentación de GitHub](https://docs.github.com/es/enterprise-server@2.20/github/authenticating-to-github/creating-a-personal-access-token)
+1. Crear un token de acceso personal con el permiso `package:read`
+    - Obtenerlo desde `configuración` -> `Developer settings` -> `Tokens de acceso personal`. Se puede consultar la [documentación de GitHub](https://docs.github.com/es/enterprise-server@2.20/github/authenticating-to-github/creating-a-personal-access-token).
+      > :warning: No olvidar seleccionar el permiso `package:read`.
 
     - Guardar el token en la configuración de git
-    ```bash
-    git config --global github.token <token_personal>
-   ```
-   Donde `<token_personal>` es el token que generaste en GitHub.
+      ```bash
+      git config --global github.token <token_personal>
+      ```
+      Donde `<token_personal>` es el token que generaste en GitHub.
     
 1. Agregar el plugin `sbt-github-packages` para poder descargar el package
     
     - Crear el archivo `./project/plugins.sbt`
-    ```scala 
-    addSbtPlugin("com.codecommit" % "sbt-github-packages" % "0.5.2")
-    ```
+      ```scala 
+      addSbtPlugin("com.codecommit" % "sbt-github-packages" % "0.5.2")
+      ```
 
 1. Agregar el package como dependencia
-    - Agregar al `.build.sbt`
-    ```scala 
-    githubTokenSource := TokenSource.Environment("GITHUB_TOKEN") || TokenSource.GitConfig("github.token")
-    resolvers += Resolver.githubPackages("unq-objetos3-alumnos", "lepifyo-parser")
-    libraryDependencies += "unq-objetos3-alumnos" %% "lepifyo-parser" % "0.3"
-    ```
+    - Agregar al `./build.sbt`
+      ```scala 
+      githubTokenSource := TokenSource.Environment("GITHUB_TOKEN") || TokenSource.GitConfig("github.token")
+      resolvers += Resolver.githubPackages("unq-objetos3-alumnos", "lepifyo-parser")
+      libraryDependencies += "unq-objetos3-alumnos" %% "lepifyo-parser" % "0.3"
+      ```
 
 1. Compilar el proyecto con la nueva configuración
     ```bash
     > sbt compile
-   ```
-   > Cuando termine, es buena idea cerrar y abrir intelliJ
+    ```
+    > Cuando termine, es buena idea cerrar y abrir IntelliJ
    
 ## #️⃣ Uso
 
@@ -40,7 +39,7 @@ La clase `ParserLepifyo` es la encargada de generar instancias del parser. Y se 
 import o3.ParserLepifyo
 ```
 
-Al crear una instancia del parser hay que indicarle la clase que representan un `Programa` y la clase abstracta de todos los elementos del `AST`, y ademas, pasarle las funciones que usará para crear cada elemento del `AST`.
+Al crear una instancia del parser hay que indicarle el tipo del objeto que representa un `Programa` y el tipo de los objetos que representan a los elementos del `AST`. Además, tenemos que pasarle las funciones que usará para crear cada elemento del `AST`.
 
 > #### ⚠️ Atención!
 > En los siguientes ejemplos se crean algunas clases necesarias,
