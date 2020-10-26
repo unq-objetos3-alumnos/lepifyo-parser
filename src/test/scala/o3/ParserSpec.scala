@@ -39,6 +39,15 @@ class ParserSpec extends AnyFunSpec with Matchers {
 
   case class If(cond: Expresion, pos: List[Expresion], neg: List[Expresion]) extends Expresion
 
+  describe("función faltante") {
+    it("numero") {
+      an [ParserLepifyo.MissingFunctionError] should be thrownBy {
+        val parser = new ParserLepifyo[Programa, Expresion]()
+        parser.parsear("12")
+      }
+    }
+  }
+
   describe("parsea") {
     val parser = new ParserLepifyo[Programa, Expresion](
       programa = Programa,
@@ -414,6 +423,12 @@ class ParserSpec extends AnyFunSpec with Matchers {
       val ast = parser.parsear("PromptString (\"Ingrese un string: \")")
 
       ast should equal(programa(PromptString(Cadena("Ingrese un string: "))))
+    }
+
+    it("declarar una variable con un prompt") {
+      val ast = parser.parsear("let i = PromptInt(\"Ingrese un número: \")")
+
+      ast should equal(programa(DeclaracionVariable("i", PromptInt(Cadena("Ingrese un número: ")))))
     }
   }
 

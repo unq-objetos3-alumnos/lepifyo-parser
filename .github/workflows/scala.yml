@@ -2,15 +2,13 @@ name: Scala CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
-
     steps:
     - uses: actions/checkout@v2
     - name: Set up JDK 1.8
@@ -19,3 +17,5 @@ jobs:
         java-version: 1.8
     - name: Run tests
       run: sbt test
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

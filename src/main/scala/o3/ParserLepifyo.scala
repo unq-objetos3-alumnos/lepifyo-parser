@@ -1,33 +1,33 @@
 package o3
 
-import o3.ParserLepifyo.ParseError
+import o3.ParserLepifyo.{MissingFunctionError, ParseError}
 
 import scala.util.parsing.combinator._
 
 case class ParserLepifyo[TPrograma, TExpresion](
-   programa: List[TExpresion] => TPrograma,
-   numero: Int => TExpresion,
-   booleano: Boolean => TExpresion,
-   string: String => TExpresion,
-   suma: (TExpresion, TExpresion) => TExpresion,
-   resta: (TExpresion, TExpresion) => TExpresion,
-   multiplicacion: (TExpresion, TExpresion) => TExpresion,
-   division: (TExpresion, TExpresion) => TExpresion,
-   igual: (TExpresion, TExpresion) => TExpresion,
-   distinto: (TExpresion, TExpresion) => TExpresion,
-   mayor: (TExpresion, TExpresion) => TExpresion,
-   mayorIgual: (TExpresion, TExpresion) => TExpresion,
-   menor: (TExpresion, TExpresion) => TExpresion,
-   menorIgual: (TExpresion, TExpresion) => TExpresion,
-   declaracionVariable: (String, TExpresion) => TExpresion,
-   variable: String => TExpresion,
-   asignacion: (String, TExpresion) => TExpresion,
-   concatenacion: (TExpresion, TExpresion) => TExpresion,
-   printLn: TExpresion => TExpresion,
-   promptString: TExpresion => TExpresion,
-   promptInt: TExpresion => TExpresion,
-   promptBool: TExpresion => TExpresion,
-   si: (TExpresion, List[TExpresion], List[TExpresion]) => TExpresion
+   programa: List[TExpresion] => TPrograma = { throw MissingFunctionError("programa") },
+   numero: Int => TExpresion = { throw MissingFunctionError("numero") },
+   booleano: Boolean => TExpresion = { throw MissingFunctionError("booleano") },
+   string: String => TExpresion = { throw MissingFunctionError("string") },
+   suma: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("suma") },
+   resta: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("resta") },
+   multiplicacion: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("multiplicacion") },
+   division: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("division") },
+   igual: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("igual") },
+   distinto: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("distinto") },
+   mayor: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("mayor") },
+   mayorIgual: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("mayorIgual") },
+   menor: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("menor") },
+   menorIgual: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("menorIgual") },
+   declaracionVariable: (String, TExpresion) => TExpresion = { throw MissingFunctionError("declaracionVariable") },
+   variable: String => TExpresion = { throw MissingFunctionError("variable") },
+   asignacion: (String, TExpresion) => TExpresion = { throw MissingFunctionError("asignacion") },
+   concatenacion: (TExpresion, TExpresion) => TExpresion = { throw MissingFunctionError("concatenacion") },
+   printLn: TExpresion => TExpresion = { throw MissingFunctionError("printLn") },
+   promptString: TExpresion => TExpresion = { throw MissingFunctionError("promptString") },
+   promptInt: TExpresion => TExpresion = { throw MissingFunctionError("promptInt") },
+   promptBool: TExpresion => TExpresion = { throw MissingFunctionError("promptBool") },
+   si: (TExpresion, List[TExpresion], List[TExpresion]) => TExpresion = { throw MissingFunctionError("si") }
  ) extends RegexParsers {
   private val funciones = Map(
     "PrintLn" -> printLn,
@@ -53,7 +53,10 @@ case class ParserLepifyo[TPrograma, TExpresion](
     def parserIdentificador: Parser[String] = """[_a-z][_a-zA-Z0-9]*""".r
     def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
 
-    def parserFactor: Parser[TExpresion] = parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
+    def parserFuncion(nombre: String, funcion: TExpresion => TExpresion) = nombre ~> "(" ~> parserExpresion <~ ")" ^^ funcion
+    def parserFunciones: Parser[TExpresion] = funciones.map((parserFuncion _).tupled).reduce(_ | _)
+
+    def parserFactor: Parser[TExpresion] =  parserFunciones | parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
 
     def parserTermino = chainl1(parserFactor, "*" ^^^ multiplicacion | "/" ^^^ division)
 
@@ -75,10 +78,7 @@ case class ParserLepifyo[TPrograma, TExpresion](
       case identificador ~ expresion => asignacion(identificador, expresion)
     }
 
-    def parserFuncion(nombre: String, funcion: TExpresion => TExpresion) = nombre ~> "(" ~> parserExpresion <~ ")" ^^ funcion
-    def parserFunciones: Parser[TExpresion] = funciones.map((parserFuncion _).tupled).reduce(_ | _)
-
-    def parserInstruccion = parserDeclaracionVariables | parserAsignacion | parserFunciones | parserExpresion
+    def parserInstruccion = parserDeclaracionVariables | parserAsignacion | parserExpresion
     def parserBloque = "{" ~> parserInstruccion.* <~ "}" | (parserInstruccion ^^ { List(_) })
 
     def parserIf: Parser[TExpresion] = ("if" ~> "(" ~> parserExpresion <~ ")" <~ "then") ~ parserBloque ~ ("else" ~> parserBloque).? ^^ {
@@ -97,4 +97,5 @@ case class ParserLepifyo[TPrograma, TExpresion](
 
 object ParserLepifyo {
   case class ParseError(message: String) extends RuntimeException(message)
+  case class MissingFunctionError(fn: String) extends RuntimeException("Falta especificar una función para: "+fn)
 }
