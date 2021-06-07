@@ -39,8 +39,8 @@ class ParserSpec extends AnyFunSpec with Matchers {
 
     val si = (cond: Expresion, pos: List[Expresion], neg: List[Expresion]) => ("if", cond, pos, neg)
 
-    val lambda = (parametros: List[String], cuerpo: List[Expresion]) => ("\\", parametros, cuerpo)
-    val aplicacion = (funcion: Expresion, argumentos: List[Expresion]) => (" ", funcion, argumentos)
+    val lambda = (parametros: List[String], cuerpo: List[Expresion]) => ("lambda", parametros, cuerpo)
+    val aplicacion = (funcion: Expresion, argumentos: List[Expresion]) => ("aplicacion", funcion, argumentos)
 
     implicit def int2Numero: Int => Expresion = numero
 
@@ -228,10 +228,10 @@ class ParserSpec extends AnyFunSpec with Matchers {
         }
       }
 
-      it("los identificadores no pueden empezar con mayúsculas") {
-        an [ParserLepifyo.ParseError] should be thrownBy {
-          parser.parsear("let Holis = 12")
-        }
+      it("los identificadores pueden empezar con mayúsculas") {
+        val ast = parser.parsear("let MiVariable = 12")
+
+        ast should equal(programa(declaracionVariable("MiVariable", 12)))
       }
 
       it("usos de variables") {
@@ -485,6 +485,22 @@ class ParserSpec extends AnyFunSpec with Matchers {
 
         ast should equal(programa(
           aplicacion(variable("f"), List(2))
+        ))
+      }
+
+      it("cadena de aplicaciones") {
+        val ast = parser.parsear("f(1)(2)")
+
+        ast should equal(programa(
+          aplicacion(aplicacion(variable("f"), List(1)), List(2))
+        ))
+      }
+
+      it("eñes y tildes como parte de identificadores") {
+        val ast = parser.parsear("ñañá(último)")
+
+        ast should equal(programa(
+          aplicacion(variable("ñañá"), List(variable("último")))
         ))
       }
     }
