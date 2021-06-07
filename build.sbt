@@ -1,5 +1,5 @@
 name := "lepifyo-parser"
-version := "0.4"
+version := "0.5"
 scalaVersion := "2.13.5"
 organization := "unq-objetos3-alumnos"
 
