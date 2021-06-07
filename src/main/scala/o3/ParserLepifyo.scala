@@ -41,7 +41,14 @@ case class ParserLepifyo[TPrograma, TExpresion](
         )
     }
 
-    def parserIdentificador: Parser[String] = """((_|\p{L}\p{M}*)(_|(\p{L}|\p{N}|\p{S})\p{M}*)*)""".r
+    def parserIdentificador: Parser[String] = {
+      val emoji = """[\p{block=Emoticons}\p{block=Miscellaneous Symbols and Pictographs}]"""
+      val letra = """\p{L}\p{M}*"""
+      val numero = """\p{N}"""
+
+      s"((_|$letra|$emoji)(_|$letra|$numero|$emoji)*)".r
+    }
+
     def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
 
     def parserLiteral = parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"

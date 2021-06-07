@@ -503,6 +503,14 @@ class ParserSpec extends AnyFunSpec with Matchers {
           aplicacion(variable("ñañá"), List(variable("último")))
         ))
       }
+
+      it("emojis como parte de identificadores") {
+        val ast = parser.parsear("\uD83D\uDE04\uD83D\uDD96\uD83C\uDFFB")
+
+        ast should equal(programa(
+          variable("\uD83D\uDE04\uD83D\uDD96\uD83C\uDFFB")
+        ))
+      }
     }
   }
 }
