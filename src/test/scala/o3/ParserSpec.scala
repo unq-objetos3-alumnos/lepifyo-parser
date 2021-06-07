@@ -488,11 +488,27 @@ class ParserSpec extends AnyFunSpec with Matchers {
         ))
       }
 
+      it("aplicación con más de un argumento") {
+        val ast = parser.parsear("f(2, 3)")
+
+        ast should equal(programa(
+          aplicacion(variable("f"), List(2, 3))
+        ))
+      }
+
       it("cadena de aplicaciones") {
         val ast = parser.parsear("f(1)(2)")
 
         ast should equal(programa(
           aplicacion(aplicacion(variable("f"), List(1)), List(2))
+        ))
+      }
+
+      it("cadena de lambdas") {
+        val ast = parser.parsear("(x) -> (y) -> x")
+
+        ast should equal(programa(
+          lambda(List("x"), List(lambda(List("y"), List(variable("x")))))
         ))
       }
 
