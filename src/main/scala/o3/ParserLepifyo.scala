@@ -23,19 +23,10 @@ case class ParserLepifyo[TPrograma, TExpresion](
    variable: String => TExpresion = { _: String => throw MissingFunctionError("variable") },
    asignacion: (String, TExpresion) => TExpresion = { (_:String, _:TExpresion) => throw MissingFunctionError("asignacion") },
    concatenacion: (TExpresion, TExpresion) => TExpresion = { (_:TExpresion, _:TExpresion) => throw MissingFunctionError("concatenacion") },
-   printLn: TExpresion => TExpresion = { _: TExpresion => throw MissingFunctionError("printLn") },
-   promptString: TExpresion => TExpresion = { _: TExpresion => throw MissingFunctionError("promptString") },
-   promptInt: TExpresion => TExpresion = { _: TExpresion => throw MissingFunctionError("promptInt") },
-   promptBool: TExpresion => TExpresion = { _: TExpresion => throw MissingFunctionError("promptBool") },
-   si: (TExpresion, List[TExpresion], List[TExpresion]) => TExpresion = { (_:TExpresion, _:List[TExpresion], _:List[TExpresion]) => throw MissingFunctionError("si") }
+   si: (TExpresion, List[TExpresion], List[TExpresion]) => TExpresion = { (_:TExpresion, _:List[TExpresion], _:List[TExpresion]) => throw MissingFunctionError("si") },
+   lambda: (List[String], List[TExpresion]) => TExpresion = { (_:List[String], _:List[TExpresion]) => throw MissingFunctionError("lambda") },
+   aplicacion: (TExpresion, List[TExpresion]) => TExpresion = { (_:TExpresion, _:List[TExpresion]) => throw MissingFunctionError("aplicacion") }
  ) extends RegexParsers {
-  private val funciones = Map(
-    "PrintLn" -> printLn,
-    "PromptInt" -> promptInt,
-    "PromptBool" -> promptBool,
-    "PromptString" -> promptString,
-  )
-
   def parsear(textoPrograma: String): TPrograma = {
     def parserNumero: Parser[TExpresion] = """[0-9]+""".r ^^ { n => numero(n.toInt) }
     def parserBooleano: Parser[TExpresion] = "true" ^^^ booleano(true) | "false" ^^^ booleano(false)
@@ -53,16 +44,23 @@ case class ParserLepifyo[TPrograma, TExpresion](
     def parserIdentificador: Parser[String] = """[_a-z][_a-zA-Z0-9]*""".r
     def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
 
-    def parserFuncion(nombre: String, funcion: TExpresion => TExpresion) = nombre ~> "(" ~> parserExpresion <~ ")" ^^ funcion
-    def parserFunciones: Parser[TExpresion] = funciones.map((parserFuncion _).tupled).reduce(_ | _)
+    def parserLiteral = parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
 
-    def parserFactor: Parser[TExpresion] =  parserFunciones | parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
+    def parserLambda: Parser[TExpresion] =
+      ("(" ~> repsep(parserIdentificador, ",") <~ ")" <~ "->") ~ (("{" ~> parserInstruccion.* <~ "}") | (parserExpresion ^^ (List(_)))) ^^ {
+        case parametros ~ cuerpo => lambda(parametros, cuerpo)
+      }
+    def parserAplicacion: Parser[TExpresion] = parserLiteral ~ ("(" ~> repsep(parserExpresion, ",") <~ ")") ^^ {
+      case funcion ~ argumentos => aplicacion(funcion, argumentos)
+    }
+
+    def parserFactor: Parser[TExpresion] = parserAplicacion | parserLiteral
 
     def parserTermino = chainl1(parserFactor, "*" ^^^ multiplicacion | "/" ^^^ division)
 
     def parserMiembros = chainl1(parserTermino, "+" ^^^ suma | "-" ^^^ resta)
 
-    def parserConcatenacion = chainl1(parserMiembros, "," ^^^ concatenacion)
+    def parserConcatenacion = chainl1(parserMiembros, "++" ^^^ concatenacion)
 
     def parserMiembroDesigualdad = chainl1(parserConcatenacion,
       ">=" ^^^ mayorIgual |
@@ -70,7 +68,7 @@ case class ParserLepifyo[TPrograma, TExpresion](
       ">" ^^^ mayor |
       "<" ^^^ menor
     )
-    def parserExpresion = parserIf | chainl1(parserMiembroDesigualdad, "==" ^^^ igual | "!=" ^^^ distinto)
+    def parserExpresion = parserLambda | parserIf | chainl1(parserMiembroDesigualdad, "==" ^^^ igual | "!=" ^^^ distinto)
     def parserDeclaracionVariables = ("let " ~> parserIdentificador <~ "=") ~ parserExpresion ^^ {
       case identificador ~ expresion => declaracionVariable(identificador, expresion)
     }
