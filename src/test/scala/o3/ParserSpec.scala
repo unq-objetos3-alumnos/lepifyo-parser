@@ -512,6 +512,14 @@ class ParserSpec extends AnyFunSpec with Matchers {
         ))
       }
 
+      it("cuando hay un sólo parámetro, los paréntesis son opcionales") {
+        val ast = parser.parsear("x -> y -> x")
+
+        ast should equal(programa(
+          lambda(List("x"), List(lambda(List("y"), List(variable("x")))))
+        ))
+      }
+
       it("eñes y tildes como parte de identificadores") {
         val ast = parser.parsear("ñañá(último)")
 
