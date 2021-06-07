@@ -79,7 +79,7 @@ case class ParserLepifyo[TPrograma, TExpresion](
     def parserInstruccion = parserDeclaracionVariables | parserAsignacion | parserExpresion
     def parserBloque = "{" ~> parserInstruccion.* <~ "}" | (parserInstruccion ^^ { List(_) })
 
-    def parserIf: Parser[TExpresion] = ("if" ~> "(" ~> parserExpresion <~ ")" <~ "then") ~ parserBloque ~ ("else" ~> parserBloque).? ^^ {
+    def parserIf: Parser[TExpresion] = ("if" ~> parserExpresion <~ "then") ~ parserBloque ~ ("else" ~> parserBloque).? ^^ {
       case cond ~ pos ~ neg => si(cond, pos, neg.getOrElse(List()))
     }
 
