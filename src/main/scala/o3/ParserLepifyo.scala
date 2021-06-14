@@ -51,7 +51,9 @@ case class ParserLepifyo[TPrograma, TExpresion](
 
     def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
 
-    def parserLiteral = parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
+    def parserAplicable = parserVariable | "(" ~> parserExpresion <~ ")"
+
+    def parserLiteral = parserString | parserNumero | parserBooleano | parserAplicable
 
     def parserLambda: Parser[TExpresion] =
       ((("(" ~> repsep(parserIdentificador, ",") <~ ")") | parserIdentificador ^^ (List(_))) <~ "->") ~
@@ -59,7 +61,7 @@ case class ParserLepifyo[TPrograma, TExpresion](
           case parametros ~ cuerpo => lambda(parametros, cuerpo)
         }
     def parserAplicacion: Parser[TExpresion] =
-      parserLiteral ~ ("(" ~> repsep(parserExpresion, ",") <~ ")").+ ^^ {
+      parserAplicable ~ ("(" ~> repsep(parserExpresion, ",") <~ ")").+ ^^ {
       case funcion ~ aplicaciones => aplicaciones.foldLeft(funcion)(aplicacion)
     }
 

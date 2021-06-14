@@ -46,7 +46,7 @@ class ParserSpec extends AnyFunSpec with Matchers {
 
     describe("función faltante") {
       it("numero") {
-        an [ParserLepifyo.MissingFunctionError] should be thrownBy {
+        an[ParserLepifyo.MissingFunctionError] should be thrownBy {
           val parser = new ParserLepifyo[Programa, Expresion]()
           parser.parsear("12")
         }
@@ -81,7 +81,7 @@ class ParserSpec extends AnyFunSpec with Matchers {
       it("números literales") {
         val ast = parser.parsear("12")
 
-        ast should equal(programa(numero(12)))
+        ast should equal(programa(12))
       }
 
       it("sumas de números") {
@@ -223,7 +223,7 @@ class ParserSpec extends AnyFunSpec with Matchers {
       }
 
       it("los identificadores no pueden empezar con números") {
-        an [ParserLepifyo.ParseError] should be thrownBy {
+        an[ParserLepifyo.ParseError] should be thrownBy {
           parser.parsear("let 123 = 12")
         }
       }
@@ -339,7 +339,7 @@ class ParserSpec extends AnyFunSpec with Matchers {
       it("print dentro de if") {
         val ast = parser.parsear("if(2 > 1) then printLn(1)")
 
-        ast should equal(programa(si(mayor(2,1), List(aplicacion(variable("printLn"), List(1))), List())))
+        ast should equal(programa(si(mayor(2, 1), List(aplicacion(variable("printLn"), List(1))), List())))
       }
 
       it("string vacío") {
@@ -535,6 +535,16 @@ class ParserSpec extends AnyFunSpec with Matchers {
           variable("\uD83D\uDE04\uD83D\uDD96\uD83C\uDFFB")
         ))
       }
+
+      it("aplicacion sobre expresiones aplicables") {
+        val ast = parser.parsear("2\n\t(() -> 1)()")
+
+        ast should equal(programa(
+          2,
+          aplicacion(lambda(List(), List(1)), List())
+        ))
+      }
+
     }
   }
 }
