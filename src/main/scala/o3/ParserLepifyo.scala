@@ -2,6 +2,7 @@ package o3
 
 import o3.ParserLepifyo.{MissingFunctionError, ParseError}
 
+import scala.util.matching.Regex
 import scala.util.parsing.combinator._
 
 case class ParserLepifyo[TPrograma, TExpresion](
@@ -27,7 +28,11 @@ case class ParserLepifyo[TPrograma, TExpresion](
    lambda: (List[String], List[TExpresion]) => TExpresion = { (_:List[String], _:List[TExpresion]) => throw MissingFunctionError("lambda") },
    aplicacion: (TExpresion, List[TExpresion]) => TExpresion = { (_:TExpresion, _:List[TExpresion]) => throw MissingFunctionError("aplicacion") }
  ) extends RegexParsers {
+
+  protected override val whiteSpace: Regex = """\h+""".r
+
   def parsear(textoPrograma: String): TPrograma = {
+    def parserEspacios: Parser[String] = """\s*""".r
     def parserNumero: Parser[TExpresion] = """[0-9]+""".r ^^ { n => numero(n.toInt) }
     def parserBooleano: Parser[TExpresion] = "true" ^^^ booleano(true) | "false" ^^^ booleano(false)
     def parserString: Parser[TExpresion] = """"\s*""".r ~ """(\\\\|\\"|[^"])*""".r <~ "\"" ^^ {
@@ -51,50 +56,56 @@ case class ParserLepifyo[TPrograma, TExpresion](
 
     def parserVariable: Parser[TExpresion] = parserIdentificador ^^ variable
 
-    def parserAplicable = parserVariable | "(" ~> parserExpresion <~ ")"
-
-    def parserLiteral = parserString | parserNumero | parserBooleano | parserAplicable
+    def parserLiteral = parserString | parserNumero | parserBooleano | parserVariable | "(" ~> parserExpresion <~ ")"
 
     def parserLambda: Parser[TExpresion] =
       ((("(" ~> repsep(parserIdentificador, ",") <~ ")") | parserIdentificador ^^ (List(_))) <~ "->") ~
-        (("{" ~> parserInstruccion.* <~ "}") | (parserExpresion ^^ (List(_)))) ^^ {
+        parserBloque ^^ {
           case parametros ~ cuerpo => lambda(parametros, cuerpo)
         }
     def parserAplicacion: Parser[TExpresion] =
-      parserAplicable ~ ("(" ~> repsep(parserExpresion, ",") <~ ")").+ ^^ {
+      parserLiteral ~ ("(" ~> repsep(parserExpresion, ",") <~ ")").+ ^^ {
       case funcion ~ aplicaciones => aplicaciones.foldLeft(funcion)(aplicacion)
     }
 
     def parserFactor: Parser[TExpresion] = parserAplicacion | parserLiteral
 
-    def parserTermino = chainl1(parserFactor, "*" ^^^ multiplicacion | "/" ^^^ division)
+    def parserTermino = chainl1(parserFactor, parserOperadores("*" -> multiplicacion, "/" -> division))
 
-    def parserMiembros = chainl1(parserTermino, "+" ^^^ suma | "-" ^^^ resta)
+    def parserOperadores(operadores: (String, (TExpresion, TExpresion) => TExpresion)*) =
+      operadores.map {
+        case (simboloOperador, constructorOperacion) =>
+          simboloOperador <~ parserEspacios ^^^ constructorOperacion
+      }.reduce(_ | _)
 
-    def parserConcatenacion = chainl1(parserMiembros, "++" ^^^ concatenacion)
+    def parserMiembros = chainl1(parserTermino, parserOperadores("+" -> suma, "-" -> resta))
 
-    def parserMiembroDesigualdad = chainl1(parserConcatenacion,
-      ">=" ^^^ mayorIgual |
-      "<=" ^^^ menorIgual |
-      ">" ^^^ mayor |
-      "<" ^^^ menor
+    def parserConcatenacion = chainl1(parserMiembros, parserOperadores("++" -> concatenacion))
+
+    def parserMiembroDesigualdad = chainl1(
+      parserConcatenacion,
+      parserOperadores(">=" -> mayorIgual, "<=" -> menorIgual, ">" -> mayor, "<" -> menor)
     )
-    def parserExpresion = parserLambda | parserIf | chainl1(parserMiembroDesigualdad, "==" ^^^ igual | "!=" ^^^ distinto)
-    def parserDeclaracionVariables = ("let " ~> parserIdentificador <~ "=") ~ parserExpresion ^^ {
+    def parserExpresion = parserLambda | parserIf |
+      chainl1(parserMiembroDesigualdad, parserOperadores("==" -> igual, "!=" -> distinto))
+
+    def parserDeclaracionVariables = ("let " ~> parserIdentificador <~ "=" <~ parserEspacios) ~ parserExpresion ^^ {
       case identificador ~ expresion => declaracionVariable(identificador, expresion)
     }
-    def parserAsignacion = (parserIdentificador <~ "=") ~ parserExpresion ^^ {
+    def parserAsignacion = (parserIdentificador <~ "=" <~ parserEspacios) ~ parserExpresion ^^ {
       case identificador ~ expresion => asignacion(identificador, expresion)
     }
 
     def parserInstruccion = parserDeclaracionVariables | parserAsignacion | parserExpresion
-    def parserBloque = "{" ~> parserInstruccion.* <~ "}" | (parserInstruccion ^^ { List(_) })
+    def parserBloque = "{" ~> parserInstrucciones <~ "}" | (parserInstruccion ^^ { List(_) })
 
     def parserIf: Parser[TExpresion] = ("if" ~> parserExpresion <~ "then") ~ parserBloque ~ ("else" ~> parserBloque).? ^^ {
       case cond ~ pos ~ neg => si(cond, pos, neg.getOrElse(List()))
     }
 
-    def parserPrograma = parserInstruccion.* ^^ programa
+    def parserInstrucciones = parserEspacios ~> (parserInstruccion <~ parserEspacios).*  <~ parserEspacios
+
+    def parserPrograma = parserInstrucciones ^^ programa
 
     parseAll(parserPrograma, textoPrograma) match {
       case Success(matched, _) => matched

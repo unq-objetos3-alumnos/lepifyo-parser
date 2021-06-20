@@ -536,15 +536,47 @@ class ParserSpec extends AnyFunSpec with Matchers {
         ))
       }
 
-      it("aplicacion sobre expresiones aplicables") {
-        val ast = parser.parsear("2\n\t(() -> 1)()")
+      it("se pueden aplicar literales") {
+        val ast = parser.parsear("2()")
 
         ast should equal(programa(
-          2,
+          aplicacion(2, List())
+        ))
+      }
+
+      it("los saltos de línea delimitan instrucciones") {
+        val ast = parser.parsear("f\n\t(() -> 1)()")
+
+        ast should equal(programa(
+          variable("f"),
           aplicacion(lambda(List(), List(1)), List())
         ))
       }
 
+      it("pueden haber saltos de línea entre la definición de una variable y su valor inicial") {
+        val ast = parser.parsear("let x =\n\t2")
+
+        ast should equal(programa(
+          declaracionVariable("x", 2),
+        ))
+      }
+
+      it("pueden haber saltos de línea entre la asignación a una variable y el valor nuevo") {
+        val ast = parser.parsear("let x = 2\nx =\n\t3")
+
+        ast should equal(programa(
+          declaracionVariable("x", 2),
+          asignacion("x", 3)
+        ))
+      }
+
+      it("pueden haber espacios además de saltos de línea después de un operador o de una declaración de variable/asignación") {
+        val ast = parser.parsear("let x =\n \n\t2")
+
+        ast should equal(programa(
+          declaracionVariable("x", 2)
+        ))
+      }
     }
   }
 }
